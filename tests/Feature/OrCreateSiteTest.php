@@ -58,7 +58,7 @@ test('it fails on incorrect payload', function ($site, $expectedErrors) {
     ])
     ->throws(ValidationException::class);
 
-test('it sends the generated deploy key pair instead of generate_deploy_key', function () {
+test('it never requests key generation for the custom provider', function () {
     $service = mock(ForgeService::class)->makePartial();
     $setting = Mockery::mock(ForgeSetting::class);
     $setting->server = '111111';
@@ -74,7 +74,6 @@ test('it sends the generated deploy key pair instead of generate_deploy_key', fu
     $setting->siteIsolationRequired = false;
     $service->setting = $setting;
     $service->site = null;
-    $service->setDeployKeyPair('ssh-ed25519 AAAApublic', '-----BEGIN OPENSSH PRIVATE KEY-----');
 
     $service->shouldReceive('getFormattedDomainName')
         ->andReturn('pr-1.example.com');
@@ -95,8 +94,7 @@ test('it sends the generated deploy key pair instead of generate_deploy_key', fu
             'repository' => 'git@github.com:acme/example.git',
             'branch' => 'main',
             'push_to_deploy' => false,
-            'public_deploy_key' => 'ssh-ed25519 AAAApublic',
-            'private_deploy_key' => '-----BEGIN OPENSSH PRIVATE KEY-----',
+            'generate_deploy_key' => false,
         ])
         ->andReturn($site);
 

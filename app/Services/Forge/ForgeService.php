@@ -49,23 +49,7 @@ class ForgeService
      */
     public bool $siteNewlyMade = false;
 
-    /**
-     * The public part of a locally generated deploy key pair.
-     */
-    public ?string $publicDeployKey = null;
-
-    /**
-     * The private part of a locally generated deploy key pair.
-     */
-    public ?string $privateDeployKey = null;
-
     public function __construct(public ForgeSetting $setting, public ForgeClient $client) {}
-
-    public function setDeployKeyPair(string $publicKey, string $privateKey): void
-    {
-        $this->publicDeployKey = $publicKey;
-        $this->privateDeployKey = $privateKey;
-    }
 
     public function setServer(ForgeServerData $server): void
     {

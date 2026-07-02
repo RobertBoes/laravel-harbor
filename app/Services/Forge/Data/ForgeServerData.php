@@ -12,6 +12,7 @@ class ForgeServerData
         public int|string $id,
         public ?string $name,
         public ?string $ipAddress,
+        public ?string $localPublicKey = null,
     ) {
         //
     }
@@ -24,6 +25,7 @@ class ForgeServerData
             id: JsonApiData::id($resource),
             name: $attributes['name'] ?? null,
             ipAddress: $attributes['ip_address'] ?? null,
+            localPublicKey: $attributes['local_public_key'] ?? null,
         );
     }
 }
