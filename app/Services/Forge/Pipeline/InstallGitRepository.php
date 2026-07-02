@@ -37,7 +37,7 @@ class InstallGitRepository
 
         if ($service->setting->githubCreateDeployKey) {
             $this->information(
-                '---> The deploy key was attached during site creation and installed on the GitHub repository.'
+                "---> The repository was installed using the server's deploy key."
             );
         }
 
