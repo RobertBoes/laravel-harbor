@@ -25,6 +25,7 @@
         "laravel/slack-notification-channel": "^3.2",
         "lorisleiva/laravel-actions": "^2.10",
         "nunomaduro/termwind": "^2.0",
+        "phpseclib/phpseclib": "^3.0",
         "saloonphp/saloon": "^4.0"
     },
     "require-dev": {

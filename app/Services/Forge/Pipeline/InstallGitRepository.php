@@ -36,8 +36,8 @@ class InstallGitRepository
         $this->information('Installing the git repository.');
 
         if ($service->setting->githubCreateDeployKey) {
-            $this->warning(
-                '---> Forge now creates deploy keys during site creation. Please add the generated key from Forge UI to your repository if deployment access fails.'
+            $this->information(
+                '---> The deploy key was attached during site creation and installed on the GitHub repository.'
             );
         }
 

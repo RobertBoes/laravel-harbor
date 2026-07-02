@@ -52,8 +52,14 @@ class OrCreateNewSite
             'repository' => $service->setting->gitProvider !== 'custom' ? $service->setting->repository : $service->setting->repositoryUrl,
             'branch' => $service->setting->branch,
             'push_to_deploy' => $service->setting->quickDeploy,
-            'generate_deploy_key' => $service->setting->githubCreateDeployKey,
         ];
+
+        if ($service->publicDeployKey !== null && $service->privateDeployKey !== null) {
+            $data['public_deploy_key'] = $service->publicDeployKey;
+            $data['private_deploy_key'] = $service->privateDeployKey;
+        } else {
+            $data['generate_deploy_key'] = $service->setting->githubCreateDeployKey;
+        }
 
         if ($nginxTemplate = $service->setting->nginxTemplate) {
             $this->information('---> Use the specified Nginx template.');

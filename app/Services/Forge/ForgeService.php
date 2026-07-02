@@ -49,7 +49,23 @@ class ForgeService
      */
     public bool $siteNewlyMade = false;
 
+    /**
+     * The public part of a locally generated deploy key pair.
+     */
+    public ?string $publicDeployKey = null;
+
+    /**
+     * The private part of a locally generated deploy key pair.
+     */
+    public ?string $privateDeployKey = null;
+
     public function __construct(public ForgeSetting $setting, public ForgeClient $client) {}
+
+    public function setDeployKeyPair(string $publicKey, string $privateKey): void
+    {
+        $this->publicDeployKey = $publicKey;
+        $this->privateDeployKey = $privateKey;
+    }
 
     public function setServer(ForgeServerData $server): void
     {
@@ -91,15 +107,15 @@ class ForgeService
         }
 
         $subdomain = $this->setting->subdomainName ?? $this->getFormattedBranchName();
-        
+
         return collect(explode(',', $this->setting->aliases))
-            ->map(fn($alias) => GenerateDomainName::run(trim($alias), $subdomain))
+            ->map(fn ($alias) => GenerateDomainName::run(trim($alias), $subdomain))
             ->toArray();
     }
 
     public function getSiteIsolationUsername(): string
     {
-        if (!empty($this->setting->siteIsolationUsername)) {
+        if (! empty($this->setting->siteIsolationUsername)) {
             return $this->setting->siteIsolationUsername;
         }
 
@@ -169,7 +185,7 @@ class ForgeService
             return $this->setting->environmentUrl;
         }
 
-        return ($this->setting->sslRequired ? 'https://' : 'http://') . $this->site->name;
+        return ($this->setting->sslRequired ? 'https://' : 'http://').$this->site->name;
     }
 
     public function siteDirectory(): string
