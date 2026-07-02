@@ -24,7 +24,11 @@ class ObtainLetsEncryptCertification
 
     public function __invoke(ForgeService $service, Closure $next)
     {
-        if (! $service->setting->sslRequired || ! $service->siteNewlyMade) {
+        if (! $service->setting->sslRequired) {
+            return $next($service);
+        }
+
+        if (! $service->siteNewlyMade && $service->hasActiveCertificate($service->site->name)) {
             return $next($service);
         }
 

@@ -333,6 +333,17 @@ class ForgeService
         return $this->client->createDomain($this->setting->server, $this->site->id, $domain);
     }
 
+    public function hasActiveCertificate(string $domainName): bool
+    {
+        $domain = collect($this->domains())->firstWhere('name', $domainName);
+
+        if (! $domain) {
+            return false;
+        }
+
+        return $this->client->hasActiveCertificate($this->setting->server, $this->site->id, $domain->id);
+    }
+
     public function obtainLetsEncryptCertificate(array $domains): void
     {
         $siteDomains = $this->domains();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Forge\Api;
 
+use App\Services\Forge\Api\Exceptions\ForgeApiException;
 use App\Services\Forge\Api\Requests\ForgeJsonRequest;
 use App\Services\Forge\Api\Requests\ForgeRequest;
 use App\Services\Forge\Api\Support\CursorPaginator;
@@ -222,6 +223,21 @@ class SaloonForgeClient implements ForgeClient
         ]);
 
         return ForgeDomainData::fromResource(JsonApiData::data($payload));
+    }
+
+    public function hasActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): bool
+    {
+        try {
+            $payload = $this->sendRequest(Method::GET, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/domains/{$domainRecordId}/certificates/active"));
+        } catch (ForgeApiException $exception) {
+            if ($exception->statusCode() === 404) {
+                return false;
+            }
+
+            throw $exception;
+        }
+
+        return JsonApiData::data($payload) !== [];
     }
 
     public function enableLetsEncrypt(string|int $serverId, string|int $siteId, string|int $domainRecordId): void

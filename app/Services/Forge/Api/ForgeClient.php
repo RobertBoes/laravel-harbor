@@ -43,6 +43,8 @@ interface ForgeClient
 
     public function enableQuickDeploy(string|int $serverId, string|int $siteId): void;
 
+    public function hasActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): bool;
+
     public function disableQuickDeploy(string|int $serverId, string|int $siteId): void;
 
     public function runSiteCommand(string|int $serverId, string|int $siteId, string $command): void;
