@@ -27,15 +27,15 @@ test('it generates a key pair and installs it on the github repository', functio
         ->once()
         ->withArgs(function (string $title, string $key) {
             return $title === 'Preview deploy key pr-1.example.com'
-                && str_starts_with($key, 'ssh-ed25519 ');
+                && str_starts_with($key, 'ssh-rsa ');
         })
         ->andReturn([]);
 
     $pipe = new GenerateDeployKey($githubService);
 
     expect($pipe($service, fn ($service) => $service))->toBe($service)
-        ->and($service->publicDeployKey)->toStartWith('ssh-ed25519 ')
-        ->and($service->privateDeployKey)->toContain('BEGIN OPENSSH PRIVATE KEY');
+        ->and($service->publicDeployKey)->toStartWith('ssh-rsa ')
+        ->and($service->privateDeployKey)->toContain('BEGIN RSA PRIVATE KEY');
 });
 
 test('it does nothing when deploy keys are disabled', function () {

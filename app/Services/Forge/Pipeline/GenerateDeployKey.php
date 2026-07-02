@@ -17,7 +17,7 @@ use App\Services\Forge\ForgeService;
 use App\Services\Github\GithubService;
 use App\Traits\Outputifier;
 use Closure;
-use phpseclib3\Crypt\EC;
+use phpseclib3\Crypt\RSA;
 
 class GenerateDeployKey
 {
@@ -36,11 +36,11 @@ class GenerateDeployKey
 
         $this->information('Generating a deploy key pair.');
 
-        $key = EC::createKey('Ed25519');
+        $key = RSA::createKey(4096);
 
         $service->setDeployKeyPair(
             publicKey: trim($key->getPublicKey()->toString('OpenSSH')),
-            privateKey: $key->toString('OpenSSH'),
+            privateKey: $key->toString('PKCS1'),
         );
 
         $this->information('---> Removing existing deploy keys on the GitHub repository.');
