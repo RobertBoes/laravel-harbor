@@ -237,7 +237,9 @@ class SaloonForgeClient implements ForgeClient
             throw $exception;
         }
 
-        return JsonApiData::data($payload) !== [];
+        $attributes = JsonApiData::attributes(JsonApiData::data($payload));
+
+        return ($attributes['active'] ?? false) === true;
     }
 
     public function enableLetsEncrypt(string|int $serverId, string|int $siteId, string|int $domainRecordId): void
