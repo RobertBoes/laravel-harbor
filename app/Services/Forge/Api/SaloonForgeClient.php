@@ -13,6 +13,7 @@ use App\Services\Forge\Api\Support\JsonApiData;
 use App\Services\Forge\Data\ForgeDaemonData;
 use App\Services\Forge\Data\ForgeDatabaseData;
 use App\Services\Forge\Data\ForgeDatabaseUserData;
+use App\Services\Forge\Data\ForgeDeploymentData;
 use App\Services\Forge\Data\ForgeDomainData;
 use App\Services\Forge\Data\ForgeJobData;
 use App\Services\Forge\Data\ForgeServerData;
@@ -110,9 +111,25 @@ class SaloonForgeClient implements ForgeClient
         $this->sendRequest(Method::PUT, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/deployments/script"), $payload);
     }
 
-    public function deploySite(string|int $serverId, string|int $siteId): void
+    public function deploySite(string|int $serverId, string|int $siteId): ForgeDeploymentData
     {
-        $this->sendRequest(Method::POST, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/deployments"));
+        $payload = $this->sendRequest(Method::POST, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/deployments"));
+
+        return ForgeDeploymentData::fromResource(JsonApiData::data($payload));
+    }
+
+    public function getDeployment(string|int $serverId, string|int $siteId, string|int $deploymentId): ForgeDeploymentData
+    {
+        $payload = $this->sendRequest(Method::GET, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/deployments/{$deploymentId}"));
+
+        return ForgeDeploymentData::fromResource(JsonApiData::data($payload));
+    }
+
+    public function getDeploymentLog(string|int $serverId, string|int $siteId, string|int $deploymentId): string
+    {
+        $payload = $this->sendRequest(Method::GET, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/deployments/{$deploymentId}/log"));
+
+        return (string) (JsonApiData::attributes(JsonApiData::data($payload))['output'] ?? '');
     }
 
     public function enableQuickDeploy(string|int $serverId, string|int $siteId): void

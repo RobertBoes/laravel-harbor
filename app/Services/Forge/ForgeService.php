@@ -21,6 +21,7 @@ use App\Services\Forge\Api\ForgeClient;
 use App\Services\Forge\Data\ForgeDaemonData;
 use App\Services\Forge\Data\ForgeDatabaseData;
 use App\Services\Forge\Data\ForgeDatabaseUserData;
+use App\Services\Forge\Data\ForgeDeploymentData;
 use App\Services\Forge\Data\ForgeDomainData;
 use App\Services\Forge\Data\ForgeJobData;
 use App\Services\Forge\Data\ForgeServerData;
@@ -201,10 +202,10 @@ class ForgeService
 
     public function deploySite(bool $waitOnDeploy = false): void
     {
-        $this->client->deploySite($this->setting->server, $this->site->id);
+        $deployment = $this->client->deploySite($this->setting->server, $this->site->id);
 
         if ($waitOnDeploy) {
-            $this->waitUntilDeployCompletes();
+            $this->waitUntilDeployCompletes($deployment);
         }
     }
 
@@ -400,29 +401,42 @@ class ForgeService
         }
     }
 
-    protected function waitUntilDeployCompletes(): void
+    protected function waitUntilDeployCompletes(ForgeDeploymentData $deployment): void
     {
-        $startedAt = time();
-        $timeoutAt = $startedAt + (int) $this->setting->timeoutSeconds;
-        $readyStates = ['deployed', 'installed', 'never-deployed'];
-        $failedStates = ['failed', 'removing', 'uninstalling'];
+        $timeoutAt = time() + (int) $this->setting->timeoutSeconds;
+        $failedStates = ['failed', 'failed-build', 'cancelled'];
 
         while (time() <= $timeoutAt) {
-            $latestSite = $this->client->getSite($this->setting->server, $this->site->id);
-            $this->setSite($latestSite);
-
-            if (in_array($latestSite->status, $readyStates, true)) {
+            if ($deployment->status === 'finished') {
                 return;
             }
 
-            if (in_array($latestSite->status, $failedStates, true)) {
-                throw new RuntimeException("Site deployment failed with status [{$latestSite->status}].");
+            if (in_array($deployment->status, $failedStates, true)) {
+                throw new RuntimeException(sprintf(
+                    "Deployment failed with status [%s].\n%s",
+                    $deployment->status,
+                    $this->deploymentLogTail($deployment)
+                ));
             }
 
-            sleep(5);
+            sleep($this->retryDelaySeconds());
+            $deployment = $this->client->getDeployment($this->setting->server, $this->site->id, $deployment->id);
         }
 
         throw new RuntimeException('Timed out while waiting for site deployment to complete.');
+    }
+
+    protected function deploymentLogTail(ForgeDeploymentData $deployment): string
+    {
+        try {
+            $log = $this->client->getDeploymentLog($this->setting->server, $this->site->id, $deployment->id);
+        } catch (\Throwable) {
+            return '(deployment log unavailable)';
+        }
+
+        $lines = explode("\n", trim($log));
+
+        return implode("\n", array_slice($lines, -40));
     }
 
     protected function waitUntilSiteIsInstalled(ForgeSiteData $site): ForgeSiteData

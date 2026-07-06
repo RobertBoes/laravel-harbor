@@ -7,6 +7,7 @@ namespace App\Services\Forge\Api;
 use App\Services\Forge\Data\ForgeDaemonData;
 use App\Services\Forge\Data\ForgeDatabaseData;
 use App\Services\Forge\Data\ForgeDatabaseUserData;
+use App\Services\Forge\Data\ForgeDeploymentData;
 use App\Services\Forge\Data\ForgeDomainData;
 use App\Services\Forge\Data\ForgeJobData;
 use App\Services\Forge\Data\ForgeServerData;
@@ -39,7 +40,11 @@ interface ForgeClient
 
     public function updateSiteDeploymentScript(string|int $serverId, string|int $siteId, string $content, ?bool $autoSource = null): void;
 
-    public function deploySite(string|int $serverId, string|int $siteId): void;
+    public function deploySite(string|int $serverId, string|int $siteId): ForgeDeploymentData;
+
+    public function getDeployment(string|int $serverId, string|int $siteId, string|int $deploymentId): ForgeDeploymentData;
+
+    public function getDeploymentLog(string|int $serverId, string|int $siteId, string|int $deploymentId): string;
 
     public function enableQuickDeploy(string|int $serverId, string|int $siteId): void;
 
