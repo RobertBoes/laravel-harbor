@@ -26,11 +26,14 @@ use App\Services\Forge\Data\ForgeDomainData;
 use App\Services\Forge\Data\ForgeJobData;
 use App\Services\Forge\Data\ForgeServerData;
 use App\Services\Forge\Data\ForgeSiteData;
+use App\Traits\Outputifier;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class ForgeService
 {
+    use Outputifier;
+
     /**
      * The Forge server instance.
      */
@@ -403,12 +406,24 @@ class ForgeService
 
     protected function waitUntilDeployCompletes(ForgeDeploymentData $deployment): void
     {
-        $timeoutAt = time() + (int) $this->setting->timeoutSeconds;
+        $startedAt = time();
+        $timeoutAt = $startedAt + (int) $this->setting->timeoutSeconds;
         $failedStates = ['failed', 'failed-build', 'cancelled'];
+        $lastHeartbeat = $startedAt;
 
         while (time() <= $timeoutAt) {
             if ($deployment->status === 'finished') {
                 return;
+            }
+
+            if (time() - $lastHeartbeat >= 30) {
+                $lastHeartbeat = time();
+                $this->information(sprintf(
+                    '---> Deployment %s is still running (%dm%02ds elapsed).',
+                    $deployment->id,
+                    intdiv(time() - $startedAt, 60),
+                    (time() - $startedAt) % 60
+                ));
             }
 
             if (in_array($deployment->status, $failedStates, true)) {
