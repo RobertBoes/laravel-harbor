@@ -239,7 +239,8 @@ class ForgeService
 
     protected function retryWhileBusy(callable $callback): void
     {
-        $timeoutAt = time() + (int) $this->setting->timeoutSeconds;
+        $startedAt = time();
+        $timeoutAt = $startedAt + (int) $this->setting->timeoutSeconds;
 
         while (true) {
             try {
@@ -250,6 +251,13 @@ class ForgeService
                 if (! $this->isTransientApiError($exception) || time() > $timeoutAt) {
                     throw $exception;
                 }
+
+                $this->information(sprintf(
+                    '---> Forge is busy (%s) — retrying (%dm%02ds elapsed).',
+                    trim(explode("\n", $exception->getMessage())[0]),
+                    intdiv(time() - $startedAt, 60),
+                    (time() - $startedAt) % 60
+                ));
             }
 
             sleep($this->retryDelaySeconds());
