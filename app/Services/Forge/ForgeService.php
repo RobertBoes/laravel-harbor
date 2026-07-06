@@ -16,6 +16,7 @@ namespace App\Services\Forge;
 use App\Actions\FormattedBranchName;
 use App\Actions\GenerateDomainName;
 use App\Actions\GenerateStandardizedBranchName;
+use App\Services\Forge\Api\Exceptions\ForgeApiException;
 use App\Services\Forge\Api\ForgeClient;
 use App\Services\Forge\Data\ForgeDaemonData;
 use App\Services\Forge\Data\ForgeDatabaseData;
@@ -224,7 +225,47 @@ class ForgeService
 
     public function updateSiteEnvironmentFile(string $content): void
     {
-        $this->client->updateSiteEnvironment($this->setting->server, $this->site->id, $content);
+        // Forge rejects environment updates while a deployment is running (e.g. a push
+        // landing while the previous push is still deploying); retry until the deploy
+        // finishes instead of failing the whole provision.
+        $this->retryWhileBusy(function () use ($content): void {
+            $this->client->updateSiteEnvironment($this->setting->server, $this->site->id, $content);
+        });
+    }
+
+    protected function retryWhileBusy(callable $callback): void
+    {
+        $timeoutAt = time() + (int) $this->setting->timeoutSeconds;
+
+        while (true) {
+            try {
+                $callback();
+
+                return;
+            } catch (ForgeApiException $exception) {
+                if (! $this->isTransientApiError($exception) || time() > $timeoutAt) {
+                    throw $exception;
+                }
+            }
+
+            sleep($this->retryDelaySeconds());
+        }
+    }
+
+    protected function retryDelaySeconds(): int
+    {
+        return 10;
+    }
+
+    protected function isTransientApiError(ForgeApiException $exception): bool
+    {
+        if (in_array($exception->statusCode(), [409, 423, 425, 429], true)) {
+            return true;
+        }
+
+        // Forge reports "busy" conflicts (deployment in progress, site still installing)
+        // as plain validation errors, so match the advisory wording as well.
+        return (bool) preg_match('/try again|wait at least|in progress/i', $exception->getMessage());
     }
 
     public function siteDeploymentScript(): string
