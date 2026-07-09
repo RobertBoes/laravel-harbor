@@ -78,6 +78,7 @@ test('it waits for the certificate and retries a failed issuance once', function
 
     $client->shouldReceive('listDomains')->once()->andReturn([$domain]);
     $client->shouldReceive('enableLetsEncrypt')->twice();
+    $client->shouldReceive('deleteCertificate')->once()->with('1', 10, 7, 1);
     $client->shouldReceive('getActiveCertificate')->times(3)->andReturn(
         ['id' => 1, 'active' => true, 'status' => 'installing', 'request_status' => 'verifying'],
         ['id' => 1, 'active' => true, 'status' => 'failed', 'request_status' => 'created'],
@@ -95,6 +96,7 @@ test('it throws when issuance fails twice', function () {
 
     $client->shouldReceive('listDomains')->once()->andReturn([$domain]);
     $client->shouldReceive('enableLetsEncrypt')->twice();
+    $client->shouldReceive('deleteCertificate')->twice()->with('1', 10, 7, 1);
     $client->shouldReceive('getActiveCertificate')->twice()->andReturn(
         ['id' => 1, 'active' => true, 'status' => 'failed', 'request_status' => 'created'],
         ['id' => 1, 'active' => true, 'status' => 'failed', 'request_status' => 'created'],

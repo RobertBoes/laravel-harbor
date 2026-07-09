@@ -55,6 +55,8 @@ interface ForgeClient
      */
     public function getActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): ?array;
 
+    public function deleteCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId, string|int $certificateId): void;
+
     public function runCertificateAction(string|int $serverId, string|int $siteId, string|int $domainRecordId, string|int $certificateId, string $action): void;
 
     public function disableQuickDeploy(string|int $serverId, string|int $siteId): void;

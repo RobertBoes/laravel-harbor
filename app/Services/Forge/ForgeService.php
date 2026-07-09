@@ -457,12 +457,17 @@ class ForgeService
             }
 
             if (($certificate['status'] ?? null) === 'failed') {
+                // A failed certificate leaves nginx config referencing certificate files
+                // that don't exist, which breaks `nginx -t` and with it every subsequent
+                // reload on the whole server — always remove it, even when giving up.
+                $this->client->deleteCertificate($this->setting->server, $this->site->id, $domainRecordId, $certificate['id']);
+
                 if ($retriedIssuance) {
                     throw new RuntimeException(sprintf('LetsEncrypt issuance for %s failed twice.', $domainName));
                 }
 
                 $retriedIssuance = true;
-                $this->warning(sprintf('---> Certificate issuance for %s failed; requesting a new certificate.', $domainName));
+                $this->warning(sprintf('---> Certificate issuance for %s failed; removed it and requesting a new certificate.', $domainName));
                 $this->client->enableLetsEncrypt($this->setting->server, $this->site->id, $domainRecordId);
 
                 continue;

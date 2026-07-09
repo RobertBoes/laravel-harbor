@@ -275,6 +275,11 @@ class SaloonForgeClient implements ForgeClient
         ];
     }
 
+    public function deleteCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId, string|int $certificateId): void
+    {
+        $this->sendRequest(Method::DELETE, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/domains/{$domainRecordId}/certificates/{$certificateId}"));
+    }
+
     public function runCertificateAction(string|int $serverId, string|int $siteId, string|int $domainRecordId, string|int $certificateId, string $action): void
     {
         $this->sendRequest(Method::POST, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/domains/{$domainRecordId}/certificates/{$certificateId}/actions"), [
