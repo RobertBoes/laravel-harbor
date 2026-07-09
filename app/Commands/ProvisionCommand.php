@@ -15,6 +15,7 @@ namespace App\Commands;
 
 use App\Services\Forge\ForgeService;
 use App\Services\Forge\Pipeline\AnnounceSiteOnSlack;
+use App\Services\Forge\Pipeline\CleanupFailedCertificates;
 use App\Services\Forge\Pipeline\CreateDaemons;
 use App\Services\Forge\Pipeline\CreateDatabase;
 use App\Services\Forge\Pipeline\CreateQueueWorkers;
@@ -51,6 +52,7 @@ class ProvisionCommand extends Command
         Pipeline::send($service)
             ->through([
                 FindServer::class,
+                CleanupFailedCertificates::class,
                 FindSite::class,
                 InstallServerDeployKey::class,
                 OrCreateNewSite::class,
