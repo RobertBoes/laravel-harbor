@@ -244,11 +244,16 @@ class SaloonForgeClient implements ForgeClient
 
     public function hasActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): bool
     {
+        return ($this->getActiveCertificate($serverId, $siteId, $domainRecordId)['active'] ?? false) === true;
+    }
+
+    public function getActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): ?array
+    {
         try {
             $payload = $this->sendRequest(Method::GET, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/domains/{$domainRecordId}/certificates/active"));
         } catch (ForgeApiException $exception) {
             if ($exception->statusCode() === 404) {
-                return false;
+                return null;
             }
 
             throw $exception;
@@ -256,7 +261,11 @@ class SaloonForgeClient implements ForgeClient
 
         $attributes = JsonApiData::attributes(JsonApiData::data($payload));
 
-        return ($attributes['active'] ?? false) === true;
+        return [
+            'active' => ($attributes['active'] ?? false) === true,
+            'status' => $attributes['status'] ?? null,
+            'request_status' => $attributes['request_status'] ?? null,
+        ];
     }
 
     public function enableLetsEncrypt(string|int $serverId, string|int $siteId, string|int $domainRecordId): void

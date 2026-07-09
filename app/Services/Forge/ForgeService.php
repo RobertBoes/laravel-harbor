@@ -397,7 +397,7 @@ class ForgeService
         return $this->client->hasActiveCertificate($this->setting->server, $this->site->id, $domain->id);
     }
 
-    public function obtainLetsEncryptCertificate(array $domains): void
+    public function obtainLetsEncryptCertificate(array $domains, bool $waitUntilActive = false): void
     {
         $siteDomains = $this->domains();
 
@@ -409,7 +409,61 @@ class ForgeService
             }
 
             $this->client->enableLetsEncrypt($this->setting->server, $this->site->id, $domain->id);
+
+            if ($waitUntilActive) {
+                $this->waitUntilCertificateIsActive($domain->id, $domainName);
+            }
         }
+    }
+
+    /**
+     * Forge issues LetsEncrypt certificates asynchronously; without waiting, a failed
+     * issuance is invisible and the site serves an SSL unrecognized-name alert. Poll
+     * until the certificate is active, re-requesting once if issuance lands in failed.
+     */
+    protected function waitUntilCertificateIsActive(string|int $domainRecordId, string $domainName): void
+    {
+        $startedAt = time();
+        $timeoutAt = $startedAt + (int) $this->setting->timeoutSeconds;
+        $retried = false;
+        $lastHeartbeat = $startedAt;
+
+        while (time() <= $timeoutAt) {
+            sleep($this->retryDelaySeconds());
+
+            $certificate = $this->client->getActiveCertificate($this->setting->server, $this->site->id, $domainRecordId);
+
+            if (($certificate['active'] ?? false) === true) {
+                $this->information(sprintf('---> Certificate for %s is active.', $domainName));
+
+                return;
+            }
+
+            if (($certificate['status'] ?? null) === 'failed') {
+                if ($retried) {
+                    throw new RuntimeException(sprintf('LetsEncrypt issuance for %s failed twice.', $domainName));
+                }
+
+                $retried = true;
+                $this->warning(sprintf('---> Certificate issuance for %s failed; requesting a new certificate.', $domainName));
+                $this->client->enableLetsEncrypt($this->setting->server, $this->site->id, $domainRecordId);
+
+                continue;
+            }
+
+            if (time() - $lastHeartbeat >= 30) {
+                $lastHeartbeat = time();
+                $this->information(sprintf(
+                    '---> Waiting on the certificate for %s (%s, %dm%02ds elapsed).',
+                    $domainName,
+                    $certificate['request_status'] ?? 'pending',
+                    intdiv(time() - $startedAt, 60),
+                    (time() - $startedAt) % 60
+                ));
+            }
+        }
+
+        throw new RuntimeException(sprintf('Timed out waiting for the LetsEncrypt certificate for %s.', $domainName));
     }
 
     protected function waitUntilDeployCompletes(ForgeDeploymentData $deployment): void

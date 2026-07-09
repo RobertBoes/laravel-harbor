@@ -50,6 +50,11 @@ interface ForgeClient
 
     public function hasActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): bool;
 
+    /**
+     * @return array{active: bool, status: ?string, request_status: ?string}|null
+     */
+    public function getActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): ?array;
+
     public function disableQuickDeploy(string|int $serverId, string|int $siteId): void;
 
     public function runSiteCommand(string|int $serverId, string|int $siteId, string $command): void;
