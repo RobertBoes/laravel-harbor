@@ -15,9 +15,18 @@ function makeDeployWaitService(ForgeClient $client): ForgeService
 
     $service = new class($setting, $client) extends ForgeService
     {
+        public array $servingResults = [true];
+
         protected function retryDelaySeconds(): int
         {
             return 0;
+        }
+
+        protected function certificateIsServing(string $domainName): bool
+        {
+            return count($this->servingResults) > 1
+                ? array_shift($this->servingResults)
+                : $this->servingResults[0];
         }
     };
     $site = Mockery::mock(ForgeSiteData::class);
@@ -70,9 +79,9 @@ test('it waits for the certificate and retries a failed issuance once', function
     $client->shouldReceive('listDomains')->once()->andReturn([$domain]);
     $client->shouldReceive('enableLetsEncrypt')->twice();
     $client->shouldReceive('getActiveCertificate')->times(3)->andReturn(
-        ['active' => false, 'status' => 'installing', 'request_status' => 'verifying'],
-        ['active' => false, 'status' => 'failed', 'request_status' => 'created'],
-        ['active' => true, 'status' => 'installed', 'request_status' => 'created'],
+        ['id' => 1, 'active' => true, 'status' => 'installing', 'request_status' => 'verifying'],
+        ['id' => 1, 'active' => true, 'status' => 'failed', 'request_status' => 'created'],
+        ['id' => 2, 'active' => true, 'status' => 'installed', 'request_status' => 'created'],
     );
 
     makeDeployWaitService($client)->obtainLetsEncryptCertificate(['pr-9.example.com'], waitUntilActive: true);
@@ -87,9 +96,30 @@ test('it throws when issuance fails twice', function () {
     $client->shouldReceive('listDomains')->once()->andReturn([$domain]);
     $client->shouldReceive('enableLetsEncrypt')->twice();
     $client->shouldReceive('getActiveCertificate')->twice()->andReturn(
-        ['active' => false, 'status' => 'failed', 'request_status' => 'created'],
-        ['active' => false, 'status' => 'failed', 'request_status' => 'created'],
+        ['id' => 1, 'active' => true, 'status' => 'failed', 'request_status' => 'created'],
+        ['id' => 1, 'active' => true, 'status' => 'failed', 'request_status' => 'created'],
     );
 
     makeDeployWaitService($client)->obtainLetsEncryptCertificate(['pr-9.example.com'], waitUntilActive: true);
 })->throws(RuntimeException::class, 'failed twice');
+
+test('it re-activates an installed certificate the server is not serving', function () {
+    $client = Mockery::mock(ForgeClient::class);
+    $domain = Mockery::mock(ForgeDomainData::class);
+    $domain->id = 7;
+    $domain->name = 'pr-9.example.com';
+
+    $client->shouldReceive('listDomains')->once()->andReturn([$domain]);
+    $client->shouldReceive('enableLetsEncrypt')->once();
+    $client->shouldReceive('getActiveCertificate')->twice()->andReturn(
+        ['id' => 3, 'active' => true, 'status' => 'installed', 'request_status' => 'created'],
+    );
+    $client->shouldReceive('runCertificateAction')
+        ->once()
+        ->with('1', 10, 7, 3, 'enable');
+
+    $service = makeDeployWaitService($client);
+    $service->servingResults = [false, true];
+
+    $service->obtainLetsEncryptCertificate(['pr-9.example.com'], waitUntilActive: true);
+});

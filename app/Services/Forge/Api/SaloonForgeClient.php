@@ -244,7 +244,11 @@ class SaloonForgeClient implements ForgeClient
 
     public function hasActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): bool
     {
-        return ($this->getActiveCertificate($serverId, $siteId, $domainRecordId)['active'] ?? false) === true;
+        $certificate = $this->getActiveCertificate($serverId, $siteId, $domainRecordId);
+
+        // Forge marks a certificate 'active' (= selected for the domain) as soon as it's
+        // requested, long before issuance completes — only 'installed' means it exists.
+        return ($certificate['active'] ?? false) === true && ($certificate['status'] ?? null) === 'installed';
     }
 
     public function getActiveCertificate(string|int $serverId, string|int $siteId, string|int $domainRecordId): ?array
@@ -261,11 +265,21 @@ class SaloonForgeClient implements ForgeClient
 
         $attributes = JsonApiData::attributes(JsonApiData::data($payload));
 
+        $resource = JsonApiData::data($payload);
+
         return [
+            'id' => JsonApiData::id($resource),
             'active' => ($attributes['active'] ?? false) === true,
             'status' => $attributes['status'] ?? null,
             'request_status' => $attributes['request_status'] ?? null,
         ];
+    }
+
+    public function runCertificateAction(string|int $serverId, string|int $siteId, string|int $domainRecordId, string|int $certificateId, string $action): void
+    {
+        $this->sendRequest(Method::POST, $this->endpoint("/servers/{$serverId}/sites/{$siteId}/domains/{$domainRecordId}/certificates/{$certificateId}/actions"), [
+            'action' => $action,
+        ]);
     }
 
     public function enableLetsEncrypt(string|int $serverId, string|int $siteId, string|int $domainRecordId): void

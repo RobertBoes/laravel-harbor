@@ -27,6 +27,7 @@ use App\Services\Forge\Data\ForgeJobData;
 use App\Services\Forge\Data\ForgeServerData;
 use App\Services\Forge\Data\ForgeSiteData;
 use App\Traits\Outputifier;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -425,7 +426,8 @@ class ForgeService
     {
         $startedAt = time();
         $timeoutAt = $startedAt + (int) $this->setting->timeoutSeconds;
-        $retried = false;
+        $retriedIssuance = false;
+        $forcedActivation = false;
         $lastHeartbeat = $startedAt;
 
         while (time() <= $timeoutAt) {
@@ -433,18 +435,33 @@ class ForgeService
 
             $certificate = $this->client->getActiveCertificate($this->setting->server, $this->site->id, $domainRecordId);
 
-            if (($certificate['active'] ?? false) === true) {
-                $this->information(sprintf('---> Certificate for %s is active.', $domainName));
+            // 'active' alone is set as soon as the certificate is requested; only
+            // status 'installed' means issuance completed.
+            if (($certificate['active'] ?? false) === true && ($certificate['status'] ?? null) === 'installed') {
+                // Trust nothing but an actual TLS handshake: Forge has reported installed
+                // certificates that nginx never served (SSL unrecognized-name alerts).
+                if ($this->certificateIsServing($domainName)) {
+                    $this->information(sprintf('---> Certificate for %s is installed and serving.', $domainName));
 
-                return;
+                    return;
+                }
+
+                if (! $forcedActivation) {
+                    $forcedActivation = true;
+                    $this->warning(sprintf(
+                        '---> Certificate for %s is installed but the server is not serving it; re-activating.',
+                        $domainName
+                    ));
+                    $this->client->runCertificateAction($this->setting->server, $this->site->id, $domainRecordId, $certificate['id'], 'enable');
+                }
             }
 
             if (($certificate['status'] ?? null) === 'failed') {
-                if ($retried) {
+                if ($retriedIssuance) {
                     throw new RuntimeException(sprintf('LetsEncrypt issuance for %s failed twice.', $domainName));
                 }
 
-                $retried = true;
+                $retriedIssuance = true;
                 $this->warning(sprintf('---> Certificate issuance for %s failed; requesting a new certificate.', $domainName));
                 $this->client->enableLetsEncrypt($this->setting->server, $this->site->id, $domainRecordId);
 
@@ -454,9 +471,10 @@ class ForgeService
             if (time() - $lastHeartbeat >= 30) {
                 $lastHeartbeat = time();
                 $this->information(sprintf(
-                    '---> Waiting on the certificate for %s (%s, %dm%02ds elapsed).',
+                    '---> Waiting on the certificate for %s (%s/%s, %dm%02ds elapsed).',
                     $domainName,
                     $certificate['request_status'] ?? 'pending',
+                    $certificate['status'] ?? 'pending',
                     intdiv(time() - $startedAt, 60),
                     (time() - $startedAt) % 60
                 ));
@@ -464,6 +482,21 @@ class ForgeService
         }
 
         throw new RuntimeException(sprintf('Timed out waiting for the LetsEncrypt certificate for %s.', $domainName));
+    }
+
+    /**
+     * Whether an HTTPS request to the domain completes a TLS handshake. Any HTTP status
+     * proves the certificate is being served; only connection/TLS-level failures matter.
+     */
+    protected function certificateIsServing(string $domainName): bool
+    {
+        try {
+            Http::timeout(5)->get('https://'.$domainName);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     protected function waitUntilDeployCompletes(ForgeDeploymentData $deployment): void
